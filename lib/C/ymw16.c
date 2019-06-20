@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
   double DM_Host=0;
   int ndir, np, ns;
   int vbs=0;
-  char dirname[64]="NULL",text[64]="";
+  char dirname[256]="NULL",text[64]="";
 
   char str[5];
   char *p;
@@ -203,4 +203,60 @@ int main(int argc, char *argv[])
   if(ndir==1)printf("%s: gl=%8.3f gb=%8.3f DM=%8.2f", p, gl, gb, dordm);
   else printf("%s: gl=%8.3f gb=%8.3f Dist=%9.1f", p, gl, gb, dordm);
   dmdtau(gl, gb, dordm, DM_Host, ndir, np, vbs, dirname, text); 
+}
+
+double run_ymw16(double gl, double gb, double dordm)
+{
+  //double gl, gb, dordm;
+  double DM_Host=0;
+  double dmpsr;
+  int ndir, np, ns;
+  int vbs=0;
+  char dirname[256]="NULL",text[64]="";
+  char str[5];
+  char *p;
+  //convert to upper case
+
+
+  sscanf("GAL","%s",str);
+  ndir = 2;
+  vbs = 0; 
+  p=strupr(str);
+ 
+  if(strcmp(p,"IGM") == 0) np=-1;    // IGM
+  else if(strcmp(p,"MC") == 0) np=0; // Mag Clouds
+  else if(strcmp(p,"GAL") == 0){     // Galaxy
+    np=1;
+    p="Gal";
+  } 
+  else{
+    printf("please input correct model\n");
+    usage(1);
+    exit(1);
+  }
+  if(ns==6&&np!=-1){
+  printf("Extra parameters exist in input\n");
+  usage(1);
+  }
+
+  if(ndir!=1&&ndir!=2){
+    printf("please input correct ndir\n");
+    usage(1);
+  }
+
+  if(!strcmp(dirname,"NULL")){
+    if(getenv("YMW16_DIR")==NULL){
+      printf("Warning: YMW16_DIR set to local directory\n");
+      strcpy(dirname,"./");
+    }else{
+      strcpy(dirname,getenv("YMW16_DIR"));
+    }
+  }
+  if(vbs>=1)printf("File directory: %s\n",dirname);
+
+  //if(ndir==1)printf("%s: gl=%8.3f gb=%8.3f DM=%8.2f", p, gl, gb, dordm);
+  //else printf("%s: gl=%8.3f gb=%8.3f Dist=%9.1f", p, gl, gb, dordm);
+  dmpsr = dmdtau_r(gl, gb, dordm, DM_Host, ndir, np, vbs, dirname, text);
+
+  return dmpsr;
 }

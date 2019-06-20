@@ -32,6 +32,7 @@ def generate(ngen,
              radialDistPars=7.5,
              electronModel='ne2001',
              pDistPars=[2.7, -0.34],
+             siDistType='norm',
              siDistPars=[-1.6, 0.35],
              lumDistType='lnorm',
              lumDistPars=[-1.1, 0.9],
@@ -63,6 +64,7 @@ def generate(ngen,
     radialDistType -- radial distribution model
     electronModel -- mode to use for Galactic electron distribution
     pDistPars -- parameters to use for period distribution
+    siDistType -- the pulsar spectral index distribution model to use (def=norm)
     siDistPars -- parameters to use for spectral index distribution
     lumDistPars -- parameters to use for luminosity distribution
     radialDistPars -- parameters for radial distribution
@@ -95,6 +97,9 @@ def generate(ngen,
 
     if pDistType not in ['lnorm', 'norm', 'cc97', 'lorimer12','unif', 'd_g']:
         print "Unsupported period distribution: {0}".format(pDistType)
+
+    if siDistType not in ['lnorm', 'norm']:
+        print "Unsupported spectral index distribution: {0}".format(siDistType)
     
     if radialDistType not in ['lfl06', 'yk04', 'isotropic',
                               'slab', 'disk','unif' ,'gauss','d_g', 'gamma']:
@@ -114,7 +119,8 @@ def generate(ngen,
     pop.radialDistType = radialDistType
     pop.electronModel = electronModel
     pop.lumDistType = lumDistType
-
+    pop.siDistType = siDistType
+    
     pop.rsigma = radialDistPars
     pop.pmean, pop.psigma = pDistPars
     pop.simean, pop.sisigma = siDistPars
@@ -264,7 +270,12 @@ def generate(ngen,
             p.brokenFlag = 1
             p.brokenSI = pop.brokenSI
 
-        p.spindex = random.gauss(pop.simean, pop.sisigma)
+        #Spectral index distribution added by CM 5/6/2019
+        if pop.siDistType == 'lnorm':
+            #log normal distribution in log10(alpha+5) space as defined in Jankowski et al 2018
+            p.spindex = 10**(random.gauss(pop.simean, pop.sisigma))-5
+        elif pop.siDistType == 'norm':
+            p.spindex = random.gauss(pop.simean, pop.sisigma)
 
         # get galactic position
         # first, Galactic distribution models
@@ -624,6 +635,9 @@ if __name__ == '__main__':
                         help='pulse width, percent (def=6) ')
 
     # spectral index distribution
+    parser.add_argument('-sidist', nargs=1, required=False, default=['norm'],
+                        help='type of distribution to use for spectral index',
+                        choices=['lnorm', 'norm'])
     parser.add_argument('-si', nargs=2, type=float,
                         required=False, default=[-1.6, 0.35],
                         help='mean and std dev of spectral index distribution\
@@ -735,6 +749,7 @@ if __name__ == '__main__':
                    pDistType=args.pdist[0],
                    lumDistType=args.ldist[0],
                    radialDistType=args.rdist[0],
+                   siDistType=args.sidist[0],
                    radialDistPars=args.r,
                    pDistPars=args.p,
                    lumDistPars=args.l,

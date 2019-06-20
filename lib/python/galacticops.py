@@ -17,6 +17,10 @@ Cpath = os.path.join(__libdir__, 'C')
 ne2001lib = C.CDLL(os.path.join(fortranpath, 'libne2001.so'))
 ne2001lib.dm_.restype = C.c_float
 
+# Edited by Shi Dai, 2018/03/23
+ymw16lib = C.CDLL(os.path.join(Cpath, 'ymw16lib.so'))
+ymw16lib.run_ymw16.restype = C.c_double
+
 slalib = C.CDLL(os.path.join(fortranpath, 'libsla.so'))
 vxyzlib = C.CDLL(os.path.join(fortranpath, 'libvxyz.so'))
 
@@ -98,6 +102,41 @@ def ne2001_dist_to_dm(dist, gl, gb):
                          C.byref(linpath))
 
 
+# Edited by Shi Dai, 2017/03/22
+# Updated by Shi Dai, 2018/03/23
+def ymw16_dist_to_dm(dist, gl, gb):
+    dist = C.c_double(1000*dist)
+    gl = C.c_double(gl)
+    gb = C.c_double(gb)
+
+    dm = ymw16lib.run_ymw16(gl,gb,dist)
+    tau = 4.1e-11*(dm**2.2)*(1.0 + 0.00194*dm*dm)
+
+    '''
+    proc = subprocess.Popen(['/Users/c.tan/scripts/PsrPopPy_SD/lib/ymw16/ymw16', '-d', '/Users/c.tan/scripts/PsrPopPy_SD/lib/ymw16/', 'Gal', str(gl), str(gb), str(1000.0*dist), str(2)], shell=False, stdout=subprocess.PIPE)
+    lines = proc.stdout.readlines()
+    numbers = re.findall("[-+]?\d+[\.]?\d*[eE]?[-+]?\d*", lines[0])
+    if len(numbers) == 5:
+        dm = float(numbers[3])
+        tau = 1000.0*np.power(10.0, float(numbers[4]))    # ms
+    else:
+        dist = C.c_float(dist)
+        gl = C.c_float(gl)
+        gb = C.c_float(gb)
+        print "YMW16 doesn't work...\n"
+        inpath = C.create_string_buffer(fortranpath)
+        linpath = C.c_int(len(fortranpath))
+        dm = ne2001lib.dm_(C.byref(dist),
+                         C.byref(gl),
+                         C.byref(gb),
+                         C.byref(C.c_int(4)),
+                         C.byref(C.c_float(0.0)),
+                         C.byref(inpath),
+                         C.byref(linpath))
+        tau = scatter_bhat(dm, scatterindex=-3.86, freq_mhz=1400.0)
+    '''
+    return dm#, tau
+
 def lmt85_dist_to_dm(dist, gl, gb):
     """ Use Lyne, Manchester & Taylor distance model to compute DM."""
     dist = C.c_float(dist)
@@ -117,15 +156,15 @@ def lmt85_dist_to_dm(dist, gl, gb):
                          C.byref(inpath),
                          C.byref(linpath))
 
-def ymw16_dist_to_dm(dist, gl, gb):
-    """ Use Yao Manchester Wang 2016 electron density model to get DM."""
-    """ Return distance in kpc"""
-    cmd=Cpath+'/ymw16 -d '+Cpath+'/ Gal %f %f %f %i'  % (gl,gb,dist*1000,2)
-    proc = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE)
-    output=[line.strip() for line in proc.stdout]
-    output=output[0].split(':')
-    dm=float(output[2].split('log')[0])
-    return(dm)
+#def ymw16_dist_to_dm(dist, gl, gb):
+#    """ Use Yao Manchester Wang 2016 electron density model to get DM."""
+#    """ Return distance in kpc"""
+#    cmd=Cpath+'/ymw16 -d '+Cpath+'/ Gal %f %f %f %i'  % (gl,gb,dist*1000,2)
+#    proc = subprocess.Popen(cmd,shell=True,stdout=subprocess.PIPE)
+#    output=[line.strip() for line in proc.stdout]
+#    output=output[0].split(':')
+#    dm=float(output[2].split('log')[0])
+#    return(dm)
 
     
 def ne2001_get_smtau(dist, gl, gb):
@@ -265,6 +304,7 @@ def scatter_bhat(dm,
                  scatterindex=-3.86,
                  freq_mhz=1400.0):
     """Calculate bhat et al 2004 scattering timescale for freq in MHz."""
+    #dm = dm[0]
     logtau = -6.46 + 0.154 * math.log10(dm)
     logtau += 1.07 * math.log10(dm)*math.log10(dm)
     logtau += scatterindex * math.log10(freq_mhz/1000.0)

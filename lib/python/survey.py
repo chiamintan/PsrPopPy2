@@ -138,6 +138,8 @@ class Survey:
         # adding AA parameter, so can scale s/n if the survey is
         # an aperture array
         self.AA = False
+        #aperture array default latitude (SKA Low)
+        self.arr_lat = -28
 
         # Parse the file line by line
         for line in f:
@@ -151,7 +153,7 @@ class Survey:
             # rather than a range of l,b or ra,dec
             if a[1].count('pointing list'):
                 pointfname = a[0].strip()
-
+                print "loading pointings"
                 # try to open the pointing list locally
                 if os.path.isfile(pointfname):
                     # pointfptr = open(pointfname, 'r')
@@ -272,6 +274,9 @@ class Survey:
             elif a[1].count('Aperture Array'):
                 # turn on AA
                 self.AA = True
+            elif a[1].count('Array Lat'):
+                # latitude of the AA (added by CM 06/06/2019)
+                self.arr_lat = float(a[0].strip())
             else:
                 print "Parameter '", a[1].strip(), "' not recognized!"
 
@@ -486,7 +491,7 @@ class Survey:
                 return -3
         # account for aperture array, if needed
         if self.AA and sig_to_noise > 0.0:
-            sig_to_noise *= self._AA_factor(pulsar)
+            sig_to_noise *= self._AA_factor(pulsar, self.arr_lat)
 
         # account for binary motion
         if pulsar.is_binary:
@@ -527,14 +532,14 @@ class Survey:
         # return the S/N accounting for beam offset
         return sig_to_noise * degfac
 
-    def _AA_factor(self, pulsar):
+    def _AA_factor(self, pulsar, arr_lat):
         """ Aperture array factor """
 
         # need to compute ra/dec of pulsar from the l and b (galtfeq)
         ra, dec = go.lb_to_radec(pulsar.gl, pulsar.gb)
 
-        offset_from_zenith = dec - (self.DECmax + self.DECmin)/2.0
-
+        offset_from_zenith = dec - arr_lat
+        
         return math.cos(math.radians(offset_from_zenith))
 
     def calcflux(self, psr, ref_freq):
