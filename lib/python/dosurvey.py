@@ -48,24 +48,27 @@ def write(surveyPops,
           summary=False):
     """Write a survey results population to a binary file."""
 
+    """Input population model name"""
+    popname = args.f.replace('.model','_')
+
     for surv, survpop, detected in surveyPops:
         # create an output file, if required
         if not nores:
             if surv is not None:
-                s = ''.join([surv, extension])
+                s = ''.join([popname, surv, extension])
 
                 survpop.write(s)
             else:
-                s = 'allsurveys.results'
+                s = str(popname) + 'allsurveys.results'
                 survpop.write(s)
 
         # Write ascii file if required
         if asc and surv is not None:
-            survpop.write_asc(surv + '.det')
+            survpop.write_asc(popname + surv + '.det')
 
         if summary and surv is not None:
             # Write a summary file for the survey (if true)
-            filename = ''.join([surv, '.summary'])
+            filename = ''.join([popname, surv, '.summary'])
             s = 'Detected {0}'.format(detected.ndet)
             s = '\n'.join([s, 'Ndiscovered {0}'.format(detected.ndisc)])
             s = '\n'.join([s, 'Nsmear {0}'.format(detected.nsmear)])
