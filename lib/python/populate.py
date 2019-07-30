@@ -29,7 +29,7 @@ def generate(ngen,
              surveyList=None,
              pDistType='lnorm',
              radialDistType='lfl06',
-             radialDistPars=7.5,
+             radialDistPars=[3.51, 7.89],
              electronModel='ne2001',
              pDistPars=[2.7, -0.34],
              siDistType='norm',
@@ -101,7 +101,7 @@ def generate(ngen,
     if siDistType not in ['lnorm', 'norm']:
         print "Unsupported spectral index distribution: {0}".format(siDistType)
     
-    if radialDistType not in ['lfl06', 'yk04', 'isotropic',
+    if radialDistType not in ['lfl06', 'lfl06s', 'spiral', 'yk04', 'isotropic',
                               'slab', 'disk','unif' ,'gauss','d_g', 'gamma']:
         print "Unsupported radial distribution: {0}".format(radialDistType)
 
@@ -121,7 +121,9 @@ def generate(ngen,
     pop.lumDistType = lumDistType
     pop.siDistType = siDistType
     
-    pop.rsigma = radialDistPars
+    #Added parameters for lfl06 distribution and mean for gaussian radial distribution
+    #CM 30/07/2019
+    pop.rpar1, pop.rpar2 = radialDistPars
     pop.pmean, pop.psigma = pDistPars
     pop.simean, pop.sisigma = siDistPars
 
@@ -193,6 +195,12 @@ def generate(ngen,
         # make an empty list here - makes some code just a little
         # simpler - can still loop over an empty list (ie zero times)
         surveys = []
+
+    #load the spiral arms location if called for
+    if radialDistType == 'spiral' or radialDistType == 'lfl06s':
+        spiralarms = np.loadtxt('/Users/c.tan/git_repo/PsrPopPy2/lib/python/spiralarms.csv',delimiter=',')
+        #details of the spiral arms
+        armsinfo = np.asarray([[3.35,0.77,0.202],[3.707,2.093,0.173],[3.56,3.81,0.183],[3.67,5.76,0.186]])
 
     while pop.ndet < ngen:
         # Declare new pulsar object
@@ -301,7 +309,46 @@ def generate(ngen,
 
         else:
             if pop.radialDistType == 'lfl06':
-                p.r0 = go.lfl06()
+                #Added changable power law and exponent of lfl06 parameters CM 30/07/2019
+                #only vary the power and exponent of the distribution
+                p.r0 = go.ykr0(pop.rpar1, pop.rpar2, 0.0)
+
+            if pop.radialDistType == 'lfl06s':
+                #Added by CM 30/07/2019
+                #only vary the power and exponent of the distribution
+                p.r0 = go.ykr0(pop.rpar1, pop.rpar2, 0.0)
+                #spiralization with this radial distribution
+                """
+                if p.r0 < 3:
+                    spiral_loc = np.where(np.logical_and(spiralarms[:,2]>=p.r0-0.005, spiralarms[:,2]<=p.r0+0.005))
+                else:
+                    spiral_loc = np.where(np.logical_and(spiralarms[:,2]>=p.r0-0.3, spiralarms[:,2]<=p.r0+0.3))
+                #break the loop if pulsar is outside of spirals
+                if len(spiral_loc[0]) == 0:
+                    continue
+                else:
+                    index = random.choice(spiral_loc[0])
+                theta = spiralarms[index,3]
+                """
+                #second method
+                #assuming bulge following the normal r relationship and r0 > 3kpc is in spiral arms 
+                #choose a random arm to place the pulsar
+                if p.r0 > 3:
+                    index = np.random.randint(0,4)
+                    rmin, thetam, thetap = armsinfo[index,0], armsinfo[index,1], armsinfo[index,2]
+                    theta = ((1/thetap)*(np.log(p.r0/rmin)))+thetam
+                    #shift the pulsar around an expotential distribution around the spiral arm
+                    p.r0 = p.r0 + go._double_sided_exp(0.3)
+                    
+
+            elif pop.radialDistType == 'spiral':
+                index = np.random.randint(0,len(spiralarms))
+                #p.r0 = np.random.normal(loc=spiralarms[index,2],scale=0.3)
+                if spiralarms[index,0] == 6:
+                    p.r0 = spiralarms[index,2]
+                else:
+                    p.r0 = spiralarms[index,2] + go._double_sided_exp(0.3)
+                theta = spiralarms[index,3]
 
             elif pop.radialDistType == 'gamma':
                 fit_alpha, fit_loc, fit_beta=1050.312227, -8.12315263841, 0.00756010693478
@@ -322,9 +369,11 @@ def generate(ngen,
                 p.r0 = random.uniform(0,12.3)
 
             elif pop.radialDistType == 'gauss':
-                # guassian of mean 0
-                # and stdDev given by parameter (kpc)
-                p.r0 = random.gauss(0., pop.rsigma)
+                # guassian of mean and stdDev given by parameter (kpc)
+                p.r0 = random.gauss(pop.rpar1, pop.rpar2)
+                # only positive r0 are kept
+                if p.r0 < 0:
+                    continue
             # then calc xyz,distance, l and b
             
             if pop.zscaleType == 'exp':
@@ -343,8 +392,22 @@ def generate(ngen,
             
             else:
                 zheight = random.gauss(0., zscale)
+           
             
-            gx, gy = go.calcXY(p.r0)
+            if pop.radialDistType == 'spiral': #or pop.radialDistType == 'lfl06':
+                gx = p.r0 * math.cos(theta)
+                if spiralarms[index,0] == 6:
+                    gy = p.r0 * math.sin(theta) + go._double_sided_exp(0.3)
+                else:
+                    gy = p.r0 * math.sin(theta)
+
+            elif pop.radialDistType == 'lfl06s' and p.r0 > 3: 
+                gx = p.r0 * math.cos(theta)
+                gy = p.r0 * math.sin(theta)                
+ 
+            else:
+                gx, gy = go.calcXY(p.r0)
+
             p.galCoords = gx, gy, zheight
             p.gl, p.gb = go.xyz_to_lb(p.galCoords)
 
@@ -674,13 +737,13 @@ if __name__ == '__main__':
     parser.add_argument('-rdist', type=str, nargs=1, required=False,
                         default=['lfl06'],
                         help='type of distrbution to use for Galactic radius',
-                        choices=['lfl06', 'yk04', 'isotropic', 'slab',
-                                 'disk', 'gauss','unif','d_g', 'gamma'])
+                        choices=['lfl06', 'lfl06s', 'spiral', 'yk04', 'isotropic',
+                                 'slab', 'disk', 'gauss','unif','d_g', 'gamma'])
 
-    parser.add_argument('-r', required=False,
-                        default=7.5, type=float,
+    parser.add_argument('-r', required=False, nargs=2,
+                        default=[3.51, 7.89], type=float,
                         help='radial distribution parameter \
-                                (required for "-rdist gauss")')
+                                (used for "-rdist lfl06/lfl06s/gauss")')
 
     # electron/dm model
     parser.add_argument('-dm', type=str, nargs=1, required=False,

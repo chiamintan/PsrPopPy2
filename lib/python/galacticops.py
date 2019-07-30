@@ -27,6 +27,7 @@ vxyzlib = C.CDLL(os.path.join(fortranpath, 'libvxyz.so'))
 yklib = C.CDLL(os.path.join(fortranpath, 'libykarea.so'))
 yklib.ykr_.restype = C.c_float
 yklib.llfr_.restype = C.c_float
+yklib.ykr0_.restype = C.c_float
 
 # BEGIN FUNCTION DEFINITIONS
 
@@ -364,6 +365,11 @@ def lfl06():
     """lfl06 model, using Y&K"""
     return yklib.llfr_(C.byref(seed()))
 
+def ykr0(a, b ,r):
+    a = C.c_float(a)
+    b = C.c_float(b)
+    r = C.c_float(r)
+    return yklib.ykr0_(C.byref(seed()), C.byref(a), C.byref(b), C.byref(r))
 
 def ykr():
     """ Y&K Model"""
