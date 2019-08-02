@@ -281,7 +281,11 @@ def generate(ngen,
         #Spectral index distribution added by CM 5/6/2019
         if pop.siDistType == 'lnorm':
             #log normal distribution in log10(alpha+5) space as defined in Jankowski et al 2018
-            p.spindex = 10**(random.gauss(pop.simean, pop.sisigma))-5
+            #transform the parameters from alpha space to log10(alpha+5) space
+            silogsigma = np.sqrt(np.log10(((pop.sisigma/(pop.simean+5))**2)+1))
+            silogmean = np.log10(pop.simean+5)-(0.5*(silogsigma**2))
+
+            p.spindex = 10**(random.gauss(silogmean, silogsigma))-5
         elif pop.siDistType == 'norm':
             p.spindex = random.gauss(pop.simean, pop.sisigma)
 
