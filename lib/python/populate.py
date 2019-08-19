@@ -282,8 +282,8 @@ def generate(ngen,
         if pop.siDistType == 'lnorm':
             #log normal distribution in log10(alpha+5) space as defined in Jankowski et al 2018
             #transform the parameters from alpha space to log10(alpha+5) space
-            silogsigma = np.sqrt(np.log10(((pop.sisigma/(pop.simean+5))**2)+1))
-            silogmean = np.log10(pop.simean+5)-(0.5*(silogsigma**2))
+            silogsigma = np.sqrt(((1/((pop.simean+5)*np.log(10)))**2)*(pop.sisigma**2)) 
+            silogmean = (np.log10(pop.simean+5)-(pop.sisigma**2/(2*((pop.simean+5)**2)*np.log(10))))
 
             p.spindex = 10**(random.gauss(silogmean, silogsigma))-5
         elif pop.siDistType == 'norm':
@@ -337,8 +337,14 @@ def generate(ngen,
                 #second method
                 #assuming bulge following the normal r relationship and r0 > 3kpc is in spiral arms 
                 #choose a random arm to place the pulsar
-                if p.r0 > 3:
+                #test - if pulsars are more likely to be in major spiral arms - not active now
+                if  p.r0 > 3:
                     index = np.random.randint(0,4)
+                    #index = np.random.randint(0,6)
+                    #if index == 4:
+                    #    index = 1
+                    #elif index == 5:
+                    #    index = 3
                     rmin, thetam, thetap = armsinfo[index,0], armsinfo[index,1], armsinfo[index,2]
                     theta = ((1/thetap)*(np.log(p.r0/rmin)))+thetam
                     #shift the pulsar around an expotential distribution around the spiral arm
