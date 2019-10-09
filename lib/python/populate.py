@@ -275,6 +275,7 @@ def generate(ngen,
         if random.random() > pop.brokenFrac:
             p.brokenFlag = 0
         else:
+            pop.ref_freq=np.random.normal(1000,500)
             p.brokenFlag = 1
             p.brokenSI = pop.brokenSI
 

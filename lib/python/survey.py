@@ -551,8 +551,8 @@ class Survey:
 
         elif psr.brokenFlag == 1 and self.freq < ref_freq:
             # assuming the alpha_1 value is for freq<ref_freq (which is ~1GHz)
+            print "This is ref freq ",ref_freq
             return psr.s_1400() * (self.freq / ref_freq)**psr.brokenSI
-
         else:
             return psr.s_1400() * (self.freq / ref_freq)**psr.spindex
 
